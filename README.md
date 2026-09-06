@@ -1,34 +1,32 @@
 # Pac-Man
 
-A recreation of the 1980 arcade Pac-Man in Godot 4.7, with the original ghost
-AI and a procedurally generated maze for every level after the first.
+A recreation of the 1980 arcade Pac-Man in Godot 4.7, with the original ghost AI
+and a procedurally generated maze for every level after the first.
 
-**[Play it in the browser](https://lijw07.github.io/portfolio/pacman/index.html)**
+## Arcade behaviour
 
-![Gameplay](screenshots/gameplay.png)
+The ghosts use their original targeting rules. Blinky chases Pac-Man directly,
+Pinky aims four tiles ahead — including the up-direction overflow bug from the
+1980 ROM — Inky mirrors Blinky through a point two tiles ahead of Pac-Man, and
+Clyde breaks off and runs for his corner inside eight tiles.
 
-## Arcade behaviour, not an approximation
+Also implemented from the arcade:
 
-- The four ghosts use their original targeting rules. Blinky chases Pac-Man
-  directly, Pinky aims four tiles ahead — including the up-direction overflow
-  bug from the 1980 ROM — Inky mirrors Blinky through a point two tiles ahead of
-  Pac-Man, and Clyde breaks off and runs for his corner inside eight tiles.
-- Scatter and chase waves on the arcade timers, with the forced reversal on
+- Scatter and chase waves on the original timers, with the forced reversal on
   every switch, and the four tiles where a ghost may not turn upward.
 - Ghost house release by personal dot counters with the no-dot release timer,
   and Cruise Elroy speeding Blinky up as the board empties.
 - Per-level speed and frightened-duration tables, 200/400/800/1600 ghost chains,
   fruit at 70 and 170 dots eaten, tunnel slowdown, extra life at 10,000.
 
-Ghosts also keep getting faster every level past the arcade tables, so the run
-ends eventually no matter how well you play.
+Past the arcade tables, ghosts keep getting faster on every level, so a run ends
+eventually no matter how well it is played. Frightened and tunnel speeds stay
+capped below Pac-Man's, so energizers and the tunnel remain real escapes.
 
 ## Procedurally generated mazes
 
 Level 1 is the arcade board. Every level after it is generated at load time and
 drawn in a new colour.
-
-![Generated mazes](screenshots/generated-mazes.png)
 
 The generator lays a lattice of one-tile corridors over the board, then deletes
 random corridor segments in mirrored pairs, keeping a deletion only if the maze
@@ -44,8 +42,8 @@ in-engine: no invalid mazes, no fallbacks, 192-260 dots, about 36 ms each.
 
 ## Drawn and synthesized in code
 
-The only assets in the repo are the 16x16 sprites in `pacman-art/`. Everything
-else is generated at runtime:
+The only assets are the 16x16 sprites in `pacman-art/`. Everything else is
+generated at runtime:
 
 - Maze walls are drawn as inset rounded outlines per wall tile, which produces
   the arcade's double-line look and means a new maze needs no new art.
@@ -63,30 +61,20 @@ else is generated at runtime:
 | Swipe | Move (touch screens and mouse drag) |
 | Tap | Start, pick a menu option |
 
+There is a debug panel on F1 in debug builds only, gated on
+`OS.is_debug_build()`, with level jumps, maze reroll, invincibility and frozen
+ghosts. Exported builds have no way to reach it.
+
 ## Running it
 
 Open the project in Godot 4.7 and press F5. The main scene is
 `scenes/main.tscn`.
 
-## Web build
-
-`export_presets.cfg` exports to `docs/`, so Project > Export > Web >
-Export Project overwrites that folder and you commit the result. The preset is
-single-threaded, so the build needs no cross-origin isolation headers and runs
-on any plain static host.
-
-The playable copy on the portfolio site is that folder copied to the portfolio's
-`public/pacman/`. Its `index.html` is patched to share an `AudioContext` with the
-parent page so audio works inside the site's iframe, so when re-exporting, copy
-everything except `index.html`:
-
-```
-rsync -a --exclude index.html --exclude .gdignore \
-      docs/ ../../Web-Projects/portfolio/public/pacman/
-```
-
-If `index.html` itself ever needs to change, re-apply the audio shim to the
-newly exported one rather than copying it straight over.
+The web preset exports to `docs/` and is single-threaded, so the build needs no
+cross-origin isolation headers and runs on any plain static host. The copy
+served on the portfolio has a patched `index.html` that shares an `AudioContext`
+with the parent page, so a re-export should replace everything in that folder
+except `index.html`.
 
 ## Project layout
 
