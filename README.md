@@ -3,7 +3,7 @@
 A recreation of the 1980 arcade Pac-Man in Godot 4.7, with the original ghost
 AI and a procedurally generated maze for every level after the first.
 
-**[Play it in the browser](https://lijw07.github.io/pacman/)**
+**[Play it in the browser](https://lijw07.github.io/portfolio/pacman/index.html)**
 
 ![Gameplay](screenshots/gameplay.png)
 
@@ -68,11 +68,25 @@ else is generated at runtime:
 Open the project in Godot 4.7 and press F5. The main scene is
 `scenes/main.tscn`.
 
-The playable web build lives in `docs/`, which is what GitHub Pages serves.
-`export_presets.cfg` exports straight there, so Project > Export > Web >
-Export Project overwrites it and you commit the result. The preset is
-single-threaded, so it needs no cross-origin isolation headers and runs on any
-plain static host.
+## Web build
+
+`export_presets.cfg` exports to `docs/`, so Project > Export > Web >
+Export Project overwrites that folder and you commit the result. The preset is
+single-threaded, so the build needs no cross-origin isolation headers and runs
+on any plain static host.
+
+The playable copy on the portfolio site is that folder copied to the portfolio's
+`public/pacman/`. Its `index.html` is patched to share an `AudioContext` with the
+parent page so audio works inside the site's iframe, so when re-exporting, copy
+everything except `index.html`:
+
+```
+rsync -a --exclude index.html --exclude .gdignore \
+      docs/ ../../Web-Projects/portfolio/public/pacman/
+```
+
+If `index.html` itself ever needs to change, re-apply the audio shim to the
+newly exported one rather than copying it straight over.
 
 ## Project layout
 
