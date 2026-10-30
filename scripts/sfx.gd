@@ -4,6 +4,11 @@ extends Node
 const RATE := 22050
 const SFX_DB := -13.0
 const LOOP_DB := -22.0
+const BUS_MASTER := "Master"
+const BUS_EFFECTS := "Effects"
+const BUS_SIREN := "Siren"
+const BUSES := [BUS_MASTER, BUS_EFFECTS, BUS_SIREN]
+const VOLUME_STEPS := 10
 
 var streams := {}
 var pool: Array[AudioStreamPlayer] = []
@@ -11,6 +16,8 @@ var pool_index := 0
 var loop_player: AudioStreamPlayer
 var current_loop := ""
 var enabled := true
+var levels := {}
+var ui_players := {}
 
 func _ready() -> void:
 	streams["waka_a"] = _tone([{"f0": 560.0, "f1": 210.0, "d": 0.085}], 0.30)
@@ -45,15 +52,31 @@ func _ready() -> void:
 	streams["retreat"] = _tone([
 		{"f0": 700.0, "f1": 1000.0, "d": 0.08},
 		{"f0": 1000.0, "f1": 700.0, "d": 0.08}], 0.14, true)
+	streams["ui_move"] = _tone([{"f0": 880.0, "f1": 880.0, "d": 0.035}], 0.22)
+	streams["ui_select"] = _tone([
+		{"f0": 660.0, "f1": 660.0, "d": 0.05},
+		{"f0": 990.0, "f1": 990.0, "d": 0.08}], 0.24)
+	streams["ui_back"] = _tone([
+		{"f0": 660.0, "f1": 660.0, "d": 0.05},
+		{"f0": 440.0, "f1": 440.0, "d": 0.08}], 0.24)
 
+	_init_levels()
 	for i in 6:
-		var p := AudioStreamPlayer.new()
-		p.volume_db = SFX_DB
-		add_child(p)
-		pool.append(p)
-	loop_player = AudioStreamPlayer.new()
-	loop_player.volume_db = LOOP_DB
-	add_child(loop_player)
+		pool.append(_make_player(BUS_EFFECTS, SFX_DB))
+	loop_player = _make_player(BUS_SIREN, LOOP_DB)
+	for bus in BUSES:
+		ui_players[bus] = _make_player(bus, SFX_DB)
+
+func _init_levels() -> void:
+	for bus in BUSES:
+		levels[bus] = VOLUME_STEPS
+
+func _make_player(bus: String, volume_db: float) -> AudioStreamPlayer:
+	var p := AudioStreamPlayer.new()
+	p.bus = bus
+	p.volume_db = volume_db
+	add_child(p)
+	return p
 
 func _tone(segments: Array, vol: float, looping: bool = false) -> AudioStreamWAV:
 	var total := 0
@@ -114,3 +137,33 @@ func play_loop(key: String) -> void:
 
 func stop_loop() -> void:
 	play_loop("")
+
+func play_ui(key: String, bus: String = BUS_EFFECTS) -> void:
+	var p: AudioStreamPlayer = ui_players[bus]
+	p.stream = streams[key]
+	p.play()
+
+func set_paused(on: bool) -> void:
+	for p in pool:
+		p.stream_paused = on
+	loop_player.stream_paused = on
+
+func stop_all() -> void:
+	set_paused(false)
+	for p in pool:
+		p.stop()
+	stop_loop()
+
+func level(bus: String) -> int:
+	return levels.get(bus, VOLUME_STEPS)
+
+func set_level(bus: String, step: int) -> bool:
+	var clamped := clampi(step, 0, VOLUME_STEPS)
+	if clamped == level(bus):
+		return false
+	levels[bus] = clamped
+	var idx := AudioServer.get_bus_index(bus)
+	AudioServer.set_bus_mute(idx, clamped == 0)
+	if clamped > 0:
+		AudioServer.set_bus_volume_db(idx, linear_to_db(pow(float(clamped) / VOLUME_STEPS, 2.0)))
+	return true

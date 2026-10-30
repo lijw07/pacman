@@ -58,8 +58,20 @@ generated at runtime:
 | --- | --- |
 | Arrow keys / WASD | Move |
 | Enter / Space | Start, confirm a menu choice |
+| Esc / P | Pause, go back a page in the pause menu |
 | Swipe | Move (touch screens and mouse drag) |
 | Tap | Start, pick a menu option |
+
+Pausing opens a menu with RESUME, RESTART, SETTINGS and MAIN MENU. Every menu
+is driven by the arrow keys, the mouse or taps, and every move and selection
+plays a short blip. SETTINGS has volume sliders for MASTER, EFFECTS (chomps,
+fruit, menu blips) and SIREN (the background ghost loop), each in ten steps,
+changed with left and right or by tapping a segment. Effects and siren play on
+their own audio buses, declared in `default_bus_layout.tres`, and the levels are
+saved with the high score. The buses have to come from the layout file: buses
+added from code at runtime are wired into a feedback loop by the web audio
+backend, which the browser silences. The game also pauses itself when the window or browser tab loses
+focus.
 
 The between-levels panel offers CONTINUE and QUIT. QUIT closes the game in a
 desktop build. Browsers do not let a page close itself, so in a web build the

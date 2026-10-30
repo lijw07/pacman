@@ -7,6 +7,7 @@ const READY_TIME_SHORT := 1.6
 const GHOST_EAT_PAUSE := 0.9
 const FRUIT_DURATION := 9.5
 const GHOST_SCORES := [200, 400, 800, 1600]
+const PAUSABLE_STATES := [PM.ST_READY, PM.ST_PLAY, PM.ST_GHOST_EATEN, PM.ST_DYING, PM.ST_LEVEL_CLEAR]
 const DEBUG_PANEL_RECT := Rect2(22.0, 96.0, 404.0, 336.0)
 
 var board: Board
@@ -14,6 +15,7 @@ var player: Player
 var ghosts: Array[Ghost] = []
 var hud: Hud
 var sfx: Sfx
+var pause_menu: PauseMenu
 var fruit_sprite: Sprite2D
 
 var state := PM.ST_READY
@@ -60,17 +62,18 @@ var invincible := false
 var ghosts_frozen := false
 var touch_origin := Vector2.ZERO
 var touch_active := false
+var paused := false
 
 func _ready() -> void:
 	randomize()
 	run_seed = randi() & 0x0FFFFFFF
 	_register_input()
-	_load_save()
 	board = Board.new()
 	add_child(board)
 	board.build(PM.MAZE_CLASSIC, PM.level_color(1))
 	sfx = Sfx.new()
 	add_child(sfx)
+	_load_save()
 	fruit_sprite = Sprite2D.new()
 	fruit_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	fruit_sprite.scale = Vector2(2, 2)
@@ -92,9 +95,51 @@ func _ready() -> void:
 	hud = Hud.new()
 	hud.game = self
 	add_child(hud)
+	_create_pause_menu()
 	get_viewport().size_changed.connect(_on_viewport_resized)
 	_on_viewport_resized()
 	enter_title()
+
+func _create_pause_menu() -> void:
+	pause_menu = PauseMenu.new()
+	pause_menu.sfx = sfx
+	add_child(pause_menu)
+	pause_menu.resume_requested.connect(_resume)
+	pause_menu.restart_requested.connect(_on_pause_restart)
+	pause_menu.main_menu_requested.connect(_on_pause_main_menu)
+	pause_menu.settings_changed.connect(_save)
+
+func can_pause() -> bool:
+	return not paused and not debug_open and state in PAUSABLE_STATES
+
+func _pause() -> void:
+	paused = true
+	touch_active = false
+	sfx.set_paused(true)
+	pause_menu.open(board.wall_color)
+
+func _resume() -> void:
+	paused = false
+	pause_menu.close()
+	sfx.set_paused(false)
+
+func _leave_pause() -> void:
+	_resume()
+	sfx.stop_all()
+	_save()
+
+func _on_pause_restart() -> void:
+	_leave_pause()
+	_restart()
+
+func _on_pause_main_menu() -> void:
+	_leave_pause()
+	enter_title()
+
+func _notification(what: int) -> void:
+	var lost_focus := what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_WM_WINDOW_FOCUS_OUT
+	if lost_focus and pause_menu != null and can_pause():
+		_pause()
 
 func _on_viewport_resized() -> void:
 	hud.queue_redraw()
@@ -127,6 +172,7 @@ func _register_input() -> void:
 		"pm_left": [KEY_LEFT, KEY_A],
 		"pm_right": [KEY_RIGHT, KEY_D],
 		"pm_start": [KEY_ENTER, KEY_SPACE],
+		"pm_pause": [KEY_ESCAPE, KEY_P],
 	}
 	for action in map:
 		if not InputMap.has_action(action):
@@ -216,6 +262,9 @@ func menu_rect(i: int) -> Rect2:
 	return Rect2(PM.CENTER_X - 92.0, 292.0 + float(i) * 44.0, 184.0, 34.0)
 
 func _unhandled_input(event: InputEvent) -> void:
+	if paused:
+		pause_menu.handle_input(event)
+		return
 	if _debug_key(event):
 		return
 	if debug_open:
@@ -224,17 +273,21 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 			_handle_pointer(event.pressed, event.position)
 		return
+	if event.is_action_pressed("pm_pause") and can_pause():
+		sfx.play_ui("ui_select")
+		_pause()
+		return
 	if state == PM.ST_LEVEL_MENU:
 		if event.is_action_pressed("pm_up") or event.is_action_pressed("pm_left"):
-			menu_index = wrapi(menu_index - 1, 0, menu_options.size())
+			_select_level_menu(menu_index - 1)
 			return
 		if event.is_action_pressed("pm_down") or event.is_action_pressed("pm_right"):
-			menu_index = wrapi(menu_index + 1, 0, menu_options.size())
+			_select_level_menu(menu_index + 1)
 			return
 		if event is InputEventMouseMotion:
 			for i in menu_options.size():
-				if menu_rect(i).has_point(event.position):
-					menu_index = i
+				if menu_rect(i).has_point(event.position) and i != menu_index:
+					_select_level_menu(i)
 			return
 	if event.is_action_pressed("pm_start"):
 		start_requested = true
@@ -243,6 +296,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		_handle_pointer(event.pressed, event.position)
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		_handle_pointer(event.pressed, event.position)
+
+func _select_level_menu(i: int) -> void:
+	menu_index = wrapi(i, 0, menu_options.size())
+	sfx.play_ui("ui_move")
 
 func _handle_pointer(pressed: bool, pos: Vector2) -> void:
 	if pressed:
@@ -336,6 +393,8 @@ func _set_state(s: int) -> void:
 	hud.queue_redraw()
 
 func _process(delta: float) -> void:
+	if paused:
+		return
 	if debug_open:
 		hud.queue_redraw()
 		return
@@ -428,6 +487,7 @@ func _tick_level_menu(delta: float) -> void:
 	if not start_requested or state_timer < 0.3:
 		return
 	start_requested = false
+	sfx.play_ui("ui_select")
 	if menu_index == 0:
 		level += 1
 		start_level(true)
@@ -660,8 +720,12 @@ func _load_save() -> void:
 	var cfg := ConfigFile.new()
 	if cfg.load(SAVE_PATH) == OK:
 		high_score = int(cfg.get_value("game", "high_score", 0))
+		for bus in Sfx.BUSES:
+			sfx.set_level(bus, int(cfg.get_value("volume", bus, Sfx.VOLUME_STEPS)))
 
 func _save() -> void:
 	var cfg := ConfigFile.new()
 	cfg.set_value("game", "high_score", high_score)
+	for bus in Sfx.BUSES:
+		cfg.set_value("volume", bus, sfx.level(bus))
 	cfg.save(SAVE_PATH)
