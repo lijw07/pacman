@@ -7,7 +7,6 @@ const READY_TIME_SHORT := 1.6
 const GHOST_EAT_PAUSE := 0.9
 const FRUIT_DURATION := 9.5
 const GHOST_SCORES := [200, 400, 800, 1600]
-const MENU_OPTIONS := ["CONTINUE", "QUIT"]
 const DEBUG_PANEL_RECT := Rect2(22.0, 96.0, 404.0, 336.0)
 
 var board: Board
@@ -54,6 +53,8 @@ var start_requested := false
 var menu_index := 0
 var run_seed := 0
 var debug_enabled := OS.is_debug_build()
+var can_quit_app := not OS.has_feature("web")
+var menu_options: Array[String] = ["CONTINUE", "QUIT" if can_quit_app else "MAIN MENU"]
 var debug_open := false
 var invincible := false
 var ghosts_frozen := false
@@ -225,13 +226,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if state == PM.ST_LEVEL_MENU:
 		if event.is_action_pressed("pm_up") or event.is_action_pressed("pm_left"):
-			menu_index = wrapi(menu_index - 1, 0, MENU_OPTIONS.size())
+			menu_index = wrapi(menu_index - 1, 0, menu_options.size())
 			return
 		if event.is_action_pressed("pm_down") or event.is_action_pressed("pm_right"):
-			menu_index = wrapi(menu_index + 1, 0, MENU_OPTIONS.size())
+			menu_index = wrapi(menu_index + 1, 0, menu_options.size())
 			return
 		if event is InputEventMouseMotion:
-			for i in MENU_OPTIONS.size():
+			for i in menu_options.size():
 				if menu_rect(i).has_point(event.position):
 					menu_index = i
 			return
@@ -260,7 +261,7 @@ func _handle_pointer(pressed: bool, pos: Vector2) -> void:
 					return
 		return
 	if state == PM.ST_LEVEL_MENU:
-		for i in MENU_OPTIONS.size():
+		for i in menu_options.size():
 			if menu_rect(i).has_point(pos):
 				menu_index = i
 				start_requested = true
@@ -430,6 +431,8 @@ func _tick_level_menu(delta: float) -> void:
 	if menu_index == 0:
 		level += 1
 		start_level(true)
+	elif can_quit_app:
+		get_tree().quit()
 	else:
 		enter_title()
 

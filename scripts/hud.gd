@@ -3,7 +3,6 @@ extends Node2D
 
 const GHOST_NAMES := ["BLINKY", "PINKY", "INKY", "CLYDE"]
 const GHOST_TRAITS := ["CHASER", "AMBUSHER", "FLANKER", "LONER"]
-const MENU_LABELS := ["CONTINUE", "QUIT"]
 
 var game = null
 var life_tex: Texture2D
@@ -102,13 +101,13 @@ func _draw_level_menu() -> void:
 	PxFont.draw_centered(self, "LEVEL %d" % game.level, PM.CENTER_X, 196.0, 3, PM.C_YELLOW)
 	PxFont.draw_centered(self, "COMPLETE", PM.CENTER_X, 228.0, 3, PM.C_YELLOW)
 	PxFont.draw_centered(self, "SCORE %d" % game.score, PM.CENTER_X, 264.0, 2, PM.C_TEXT)
-	for i in MENU_LABELS.size():
+	for i in game.menu_options.size():
 		var r: Rect2 = game.menu_rect(i)
 		var selected: bool = game.menu_index == i
 		if selected:
 			draw_rect(r, Color(1.0, 1.0, 1.0, 0.12))
 			draw_texture_rect(pac_tex, Rect2(r.position + Vector2(6.0, 4.0), Vector2(26, 26)), false)
-		PxFont.draw_centered(self, MENU_LABELS[i], r.position.x + r.size.x * 0.5 + 12.0,
+		PxFont.draw_centered(self, game.menu_options[i], r.position.x + r.size.x * 0.5 + 12.0,
 			r.position.y + 11.0, 2, PM.C_YELLOW if selected else PM.C_TEXT)
 	PxFont.draw_centered(self, "ARROWS TO CHOOSE  -  ENTER OR TAP", PM.CENTER_X, 384.0, 1, PM.C_CYAN)
 

@@ -61,6 +61,11 @@ generated at runtime:
 | Swipe | Move (touch screens and mouse drag) |
 | Tap | Start, pick a menu option |
 
+The between-levels panel offers CONTINUE and QUIT. QUIT closes the game in a
+desktop build. Browsers do not let a page close itself, so in a web build the
+option reads MAIN MENU and returns to the title screen. The choice is made at
+runtime from `OS.has_feature("web")`, not per preset.
+
 There is a debug panel on F1 in debug builds only, gated on
 `OS.is_debug_build()`, with level jumps, maze reroll, invincibility and frozen
 ghosts. Exported builds have no way to reach it.
@@ -75,6 +80,24 @@ cross-origin isolation headers and runs on any plain static host. The copy
 served on the portfolio has a patched `index.html` that shares an `AudioContext`
 with the parent page, so a re-export should replace everything in that folder
 except `index.html`.
+
+## itch.io
+
+The `itch.io` preset exports to `build/itch/`. It is the same single-threaded
+web build as `Web`, with two differences: it leaves `build/` out of the pack,
+and its `head_include` only resumes the audio context on the first input
+instead of borrowing one from a parent page. itch.io serves the game in a
+cross-origin iframe, so the parent page cannot be reached anyway.
+
+To publish, zip the contents of `build/itch/` with `index.html` at the root of
+the zip, not inside a folder. Then, on the itch.io project page:
+
+- Kind of project: HTML. Upload the zip and tick "This file will be played in
+  the browser".
+- Viewport: 448 x 576 or a multiple of it, such as 672 x 864. The canvas
+  scales to whatever size is set.
+- Tick "Mobile friendly" (portrait) and "Fullscreen button".
+- Leave "SharedArrayBuffer support" off. The build does not use threads.
 
 ## Project layout
 
